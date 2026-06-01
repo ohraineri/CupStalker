@@ -1,0 +1,28 @@
+#ifndef CUP_STALKER_CONFIG_H
+#define CUP_STALKER_CONFIG_H
+
+#define API_BASE_URL "https://api.football-data.org/v4"
+
+#ifndef API_KEY
+#define API_KEY "YOUR_API_KEY_HERE"
+#endif
+
+#define COMPETITION_ID 2026
+
+#define API_TIMEOUT_SECONDS 10
+
+#define REFRESH_INTERVAL_SECONDS 30
+
+#define MAX_MATCHES 32
+
+#define MAX_EVENTS_PER_MATCH 32
+
+#define DEFAULT_DISPLAY_MODE DISPLAY_MODE_STEALTH
+
+#define MAIN_LOOP_SLEEP_MS 30
+
+#define GOAL_BANNER_SECONDS 3
+
+#define STEALTH_WINDOW_TITLE "build-daemon"
+
+#endif

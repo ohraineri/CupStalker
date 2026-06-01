@@ -1,0 +1,3 @@
+*.o
+/cup-stalker
+/run_tests
