@@ -25,6 +25,17 @@ size_t string_display_width(const char *text)
 
     size_t width = 0;
     for (const unsigned char *cursor = (const unsigned char *)text; *cursor; ++cursor) {
+        if (cursor[0] == 0x1B && cursor[1] == '[') {
+            cursor += 2;
+            while (*cursor && (*cursor < 0x40 || *cursor > 0x7E)) {
+                ++cursor;
+            }
+            if (*cursor == '\0') {
+                break;
+            }
+            continue;
+        }
+
         if ((*cursor & 0xC0) != 0x80) {
             ++width;
         }
