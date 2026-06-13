@@ -1,5 +1,8 @@
 CC        = gcc
-CFLAGS    = -std=c17 -Wall -Wextra -Wpedantic -Wno-unused-parameter
+# Feature-test macros expose POSIX APIs (gmtime_r, nanosleep, setitimer,
+# sigaction) under strict -std=c17 on both glibc (Linux) and macOS.
+FEATURES  = -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE -D_DARWIN_C_SOURCE
+CFLAGS    = -std=c17 -Wall -Wextra -Wpedantic -Wno-unused-parameter $(FEATURES)
 LIBS      = -lcurl -lcjson
 TARGET    = cup-stalker
 
