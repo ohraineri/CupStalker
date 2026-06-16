@@ -1,13 +1,13 @@
-# CUP STALKER — World Cup 2026 live terminal scoreboard
+# Cup Stalker
 
-A small, dependency-light terminal scoreboard for the 2026 FIFA World Cup,
-written in C17. It polls a sports-data API and renders live scores in one of
-two modes:
+Live World Cup 2026 scores in your terminal. No browser, no second monitor,
+no tab your manager can see over your shoulder.
 
-- **STEALTH** (default) — minimal, monochrome, log-like output that blends into
-  a normal terminal. Work-safe.
-- **VIVID** — flags, ANSI colors, ASCII-art panels, goal banners, and per-match
-  event detail.
+It has two modes. **Vivid** is the full thing: flags, colors, goal banners,
+match panels. **Stealth** (the default) prints the scores as plain monochrome
+lines that look like build output, so a glance from across the room reads as
+"he's compiling something", not "he's watching Brazil vs Argentina". You can
+flip between them with a single key.
 
 ```
 [cup-stalker] 2026-06-15 21:47:02 UTC | refresh: 30s
@@ -19,116 +19,90 @@ ENG 3 x 0 USA  FT
 [s] vivid  [r] refresh  [d] details  [q] quit
 ```
 
-## Dependencies
+## What you need
 
-| Library    | Purpose                       | Install (Debian/Ubuntu)            | Install (macOS / Homebrew) |
-|------------|-------------------------------|------------------------------------|----------------------------|
-| `libcurl`  | HTTP requests to the API      | `apt install libcurl4-openssl-dev` | `brew install curl`        |
-| `cJSON`    | JSON parsing                  | `apt install libcjson-dev`         | `brew install cjson`       |
+- Linux or macOS (it uses POSIX terminal stuff, so it won't build on Windows
+  without WSL)
+- `gcc` or `clang`, and `make`
+- libcurl and cJSON
 
-No `ncurses` dependency: the VIVID mode is implemented with raw ANSI escape
-sequences, keeping the dependency surface to `libcurl` and `cJSON` only.
-
-The VIVID mode and flag emoji require a UTF-8 terminal with emoji support.
-
-## Configuration
-
-All configuration lives in [`config.h`](config.h) — there is no runtime config
-file, by design. Key constants:
-
-| Constant                   | Meaning                                  |
-|----------------------------|------------------------------------------|
-| `API_BASE_URL`             | Provider base URL (football-data.org v4) |
-| `API_KEY`                  | Auth token sent as `X-Auth-Token`        |
-| `COMPETITION_ID`           | Numeric id of the World Cup 2026         |
-| `REFRESH_INTERVAL_SECONDS` | Polling cadence (default 30s)            |
-| `DEFAULT_DISPLAY_MODE`     | `DISPLAY_MODE_STEALTH` or `_VIVID`       |
-| `MAX_MATCHES`              | Max matches held/rendered                |
-
-### API key
-
-This project targets [football-data.org](https://www.football-data.org)'s free
-v4 API. Register for a token, then either edit `API_KEY` in `config.h` or pass
-it at build time without touching the file:
+Install the libraries:
 
 ```sh
-make release CFLAGS_EXTRA='-DAPI_KEY=\"your-token-here\"'
+# Debian / Ubuntu
+sudo apt install libcurl4-openssl-dev libcjson-dev
+
+# macOS (Homebrew)
+brew install curl cjson
 ```
 
-> Note: the free football-data.org tier exposes goal scorers and minute data
-> only on paid plans; on the free tier the scoreboard still shows live scores,
-> status, and minute, but per-goal scorer rows may be empty.
+There's no ncurses dependency. The vivid mode is just ANSI escape codes, so
+the only things you have to install are libcurl and cJSON.
 
-## Build
+## Get an API key
 
-```sh
-make release      # optimized build  -> ./cup-stalker
-make debug        # -g -DDEBUG + AddressSanitizer, with stderr logging
-make test         # build and run the unit tests
-make clean        # remove objects and binaries
+Scores come from [football-data.org](https://www.football-data.org). Make a
+free account and grab your API token from the dashboard.
+
+Open `config.h` and paste it in:
+
+```c
+#define API_KEY "paste-your-token-here"
 ```
 
-Builds cleanly with `-Wall -Wextra -Wpedantic`.
-
-## Run
+If you'd rather not edit the file, pass it at build time instead:
 
 ```sh
+make release CFLAGS_EXTRA='-DAPI_KEY=\"your-token\"'
+```
+
+Heads up: the free tier is enough for live scores, status and the match clock,
+but the per-goal scorer names usually only show up on the paid plans. The app
+handles that gracefully (you just won't see the scorer lines).
+
+## Build and run
+
+```sh
+make release
 ./cup-stalker
 ```
 
-### Keys
+That's it. `make debug` gives you a build with logging and AddressSanitizer if
+something misbehaves, and `make test` runs the unit tests.
 
-| Key   | Action                              |
-|-------|-------------------------------------|
-| `s`   | Toggle STEALTH / VIVID              |
-| `r`   | Force an immediate refresh          |
-| `d`   | Toggle event detail for selection   |
-| `↑ ↓` | Navigate between matches            |
-| `q`   | Quit (restores the terminal)        |
+## Controls
 
-Input is non-blocking and raw — no Enter required. `Ctrl-C` also exits cleanly.
+Keys work immediately, no Enter needed.
 
-## Goal detection
+| Key   | Does                                   |
+|-------|----------------------------------------|
+| `s`   | switch between stealth and vivid       |
+| `r`   | refresh right now                      |
+| `d`   | show/hide goals for the selected match |
+| `↑` `↓` | move between matches                 |
+| `q`   | quit (puts your terminal back to normal) |
 
-On each refresh the new scores are diffed against a snapshot of the previous
-state. When a match's aggregate score increases:
+Ctrl-C also quits cleanly.
 
-- **VIVID** shows a blinking green `⚽ GOL!` banner for a few seconds
-  (`GOAL_BANNER_SECONDS`), then returns to the panel.
-- **STEALTH** appends a discreet log line, e.g.
-  `[67'] GOAL: BRA 2-1 ARG (Rodrygo)`, retained in a small on-screen ring.
+## Configuration
 
-## Project layout
+Everything lives in `config.h`. The ones you'll actually touch:
 
-```
-cup-stalker/
-├── config.h              # compile-time configuration
-├── Makefile
-├── src/
-│   ├── main.c            # orchestrator + main loop
-│   ├── api/              # libcurl client + cJSON parser
-│   ├── model/            # Team, Match, MatchEvent, snapshots
-│   ├── display/          # terminal control + STEALTH/VIVID renderers
-│   ├── input/            # non-blocking keyboard handling
-│   ├── scheduler/        # SIGALRM polling timer
-│   └── util/             # Result, checked memory, strings, logging
-└── tests/                # unit tests (parser, model, display)
-```
+- `REFRESH_INTERVAL_SECONDS` — how often it polls. Default is 30. The free API
+  tier is rate limited, so don't crank this too low.
+- `DEFAULT_DISPLAY_MODE` — `DISPLAY_MODE_STEALTH` or `DISPLAY_MODE_VIVID`.
+- `COMPETITION_ID` — the football-data.org competition id (set to the 2026
+  World Cup).
+- `MAX_MATCHES` — how many matches to keep on screen.
 
-### Design notes
+Change anything, then `make release` again.
 
-- **Error handling:** I/O, allocation, and network functions return a `Result`
-  (`{ bool success; char message[256]; }`); callers check `.success`.
-- **Memory:** allocations go through checked wrappers (`memory_alloc` aborts on
-  OOM); `memory_free` nulls the pointer to prevent double-free. The build is
-  intended to be Valgrind-clean.
-- **Global state:** the only mutable globals are the two
-  `volatile sig_atomic_t` signal flags (timer tick and quit request).
-- **Portability:** POSIX (`termios`, `SIGALRM`, `nanosleep`); compiles on Linux
-  and macOS. The Makefile sets the feature-test macros needed under `-std=c17`.
+## Notes
 
-## Testing
-
-`make test` compiles the suites in `tests/` against the library sources
-(excluding `main.c`) and runs them, printing a `N checks, M failed` summary and
-exiting non-zero on any failure.
+- Vivid mode draws flags with emoji and boxes with Unicode, so use a UTF-8
+  terminal with a font that has them. If the alignment looks off, that's your
+  terminal/font, not the scores.
+- New goals are detected by comparing the latest poll against the previous one,
+  so a goal shows up within one refresh interval of the API reporting it.
+- It's a small personal project. If something breaks or you want a feature,
+  open an issue.
