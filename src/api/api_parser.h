@@ -9,4 +9,6 @@ Result api_parser_parse_matches(const char *json,
                                 int capacity,
                                 int *out_count);
 
+Result api_parser_parse_timeline(const char *json, Match *match);
+
 #endif

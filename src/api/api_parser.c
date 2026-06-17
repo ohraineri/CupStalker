@@ -4,8 +4,7 @@
 #include "../util/string_utils.h"
 
 #include <cjson/cJSON.h>
-#include <ctype.h>
-#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char *json_string_or(const cJSON *object, const char *key, const char *fallback)
@@ -14,93 +13,58 @@ static const char *json_string_or(const cJSON *object, const char *key, const ch
     return (cJSON_IsString(item) && item->valuestring != NULL) ? item->valuestring : fallback;
 }
 
-static int json_int_or(const cJSON *object, const char *key, int fallback)
+static int json_int_string_or(const cJSON *object, const char *key, int fallback)
 {
-    const cJSON *item = cJSON_GetObjectItemCaseSensitive(object, key);
-    return cJSON_IsNumber(item) ? item->valueint : fallback;
+    const char *text = json_string_or(object, key, NULL);
+    return (text != NULL && text[0] != '\0') ? atoi(text) : fallback;
 }
 
 static MatchStatus map_status(const char *status)
 {
-    if (string_equals(status, "IN_PLAY"))  return MATCH_STATUS_LIVE;
-    if (string_equals(status, "PAUSED"))   return MATCH_STATUS_HALFTIME;
-    if (string_equals(status, "FINISHED")) return MATCH_STATUS_FINISHED;
-    if (string_equals(status, "POSTPONED") ||
-        string_equals(status, "SUSPENDED") ||
-        string_equals(status, "CANCELLED")) return MATCH_STATUS_POSTPONED;
+    if (string_equals(status, "FT") || string_equals(status, "AET") ||
+        string_equals(status, "PEN") || string_equals(status, "Match Finished")) {
+        return MATCH_STATUS_FINISHED;
+    }
+    if (string_equals(status, "HT") || string_equals(status, "Half Time")) {
+        return MATCH_STATUS_HALFTIME;
+    }
+    if (string_equals(status, "1H") || string_equals(status, "2H") ||
+        string_equals(status, "ET") || string_equals(status, "Live") ||
+        string_equals(status, "In Play")) {
+        return MATCH_STATUS_LIVE;
+    }
+    if (string_equals(status, "PST") || string_equals(status, "Postponed") ||
+        string_equals(status, "Canc.") || string_equals(status, "Cancelled")) {
+        return MATCH_STATUS_POSTPONED;
+    }
     return MATCH_STATUS_SCHEDULED;
 }
 
-static void humanize_phase(char *destination, size_t size,
-                           const char *group, const char *stage)
+static void parse_team(const char *name, Team *team)
 {
-    if (group != NULL && strncmp(group, "GROUP_", 6) == 0) {
-        snprintf(destination, size, "Group %s", group + 6);
-        return;
-    }
-
-    if (string_equals(stage, "LAST_16"))        { string_copy(destination, size, "Round of 16"); return; }
-    if (string_equals(stage, "QUARTER_FINALS")) { string_copy(destination, size, "Quarterfinal"); return; }
-    if (string_equals(stage, "SEMI_FINALS"))    { string_copy(destination, size, "Semifinal"); return; }
-    if (string_equals(stage, "THIRD_PLACE"))    { string_copy(destination, size, "Third place"); return; }
-    if (string_equals(stage, "FINAL"))          { string_copy(destination, size, "Final"); return; }
-
-    string_copy(destination, size, stage != NULL ? stage : "");
+    char code[TEAM_CODE_CAPACITY];
+    team_code_for_name(code, sizeof code, name);
+    team_init(team, (name != NULL) ? name : "TBD", code, team_flag_for_code(code));
 }
 
-static void parse_team(const cJSON *team_json, Team *team)
+static void parse_event(const cJSON *event_json, Match *match)
 {
-    const char *name = json_string_or(team_json, "name", "TBD");
-    const char *code = json_string_or(team_json, "tla", "");
-    team_init(team, name, code, team_flag_for_code(code));
-}
+    match->id = json_int_string_or(event_json, "idEvent", 0);
+    match->status = map_status(json_string_or(event_json, "strStatus", ""));
+    match->home_score = json_int_string_or(event_json, "intHomeScore", 0);
+    match->away_score = json_int_string_or(event_json, "intAwayScore", 0);
 
-static void parse_score(const cJSON *match_json, Match *match)
-{
-    const cJSON *score = cJSON_GetObjectItemCaseSensitive(match_json, "score");
-    const cJSON *full_time = cJSON_GetObjectItemCaseSensitive(score, "fullTime");
-    match->home_score = json_int_or(full_time, "home", 0);
-    match->away_score = json_int_or(full_time, "away", 0);
-}
+    string_copy(match->phase, sizeof match->phase,
+                json_string_or(event_json, "strGroup", ""));
+    string_copy(match->venue, sizeof match->venue,
+                json_string_or(event_json, "strVenue", ""));
+    string_copy(match->city, sizeof match->city,
+                json_string_or(event_json, "strCity", ""));
+    string_copy(match->date_utc, sizeof match->date_utc,
+                json_string_or(event_json, "strTimestamp", ""));
 
-static void parse_goals(const cJSON *match_json, Match *match)
-{
-    const cJSON *goals = cJSON_GetObjectItemCaseSensitive(match_json, "goals");
-    if (!cJSON_IsArray(goals)) {
-        return;
-    }
-
-    const cJSON *goal = NULL;
-    cJSON_ArrayForEach(goal, goals) {
-        const cJSON *scorer = cJSON_GetObjectItemCaseSensitive(goal, "scorer");
-        const char *type = json_string_or(goal, "type", "REGULAR");
-
-        MatchEvent event = { 0 };
-        string_copy(event.scorer_name, sizeof event.scorer_name,
-                    json_string_or(scorer, "name", "Unknown"));
-        event.minute = json_int_or(goal, "minute", 0);
-        event.is_own_goal = string_equals(type, "OWN");
-        event.is_penalty = string_equals(type, "PENALTY");
-
-        match_add_event(match, &event);
-    }
-}
-
-static void parse_match(const cJSON *match_json, Match *match)
-{
-    match->id = json_int_or(match_json, "id", 0);
-    match->status = map_status(json_string_or(match_json, "status", ""));
-    match->minute = json_int_or(match_json, "minute", -1);
-    match->stoppage = json_int_or(match_json, "injuryTime", 0);
-
-    humanize_phase(match->phase, sizeof match->phase,
-                   json_string_or(match_json, "group", NULL),
-                   json_string_or(match_json, "stage", ""));
-
-    parse_team(cJSON_GetObjectItemCaseSensitive(match_json, "homeTeam"), &match->home);
-    parse_team(cJSON_GetObjectItemCaseSensitive(match_json, "awayTeam"), &match->away);
-    parse_score(match_json, match);
-    parse_goals(match_json, match);
+    parse_team(json_string_or(event_json, "strHomeTeam", "TBD"), &match->home);
+    parse_team(json_string_or(event_json, "strAwayTeam", "TBD"), &match->away);
 }
 
 Result api_parser_parse_matches(const char *json, Match *matches, int capacity, int *out_count)
@@ -114,26 +78,90 @@ Result api_parser_parse_matches(const char *json, Match *matches, int capacity, 
         return RESULT_ERROR("failed to parse JSON response");
     }
 
-    const cJSON *match_array = cJSON_GetObjectItemCaseSensitive(root, "matches");
-    if (!cJSON_IsArray(match_array)) {
+    const cJSON *events = cJSON_GetObjectItemCaseSensitive(root, "events");
+    if (!cJSON_IsArray(events)) {
+        *out_count = 0;
         cJSON_Delete(root);
-        return RESULT_ERROR("JSON has no \"matches\" array");
+        return RESULT_OK;
     }
 
     int count = 0;
-    const cJSON *match_json = NULL;
-    cJSON_ArrayForEach(match_json, match_array) {
+    const cJSON *event_json = NULL;
+    cJSON_ArrayForEach(event_json, events) {
         if (count >= capacity) {
-            logger_debug("match list truncated at capacity %d", capacity);
+            logger_debug("event list truncated at capacity %d", capacity);
             break;
         }
 
         matches[count] = (Match){ .minute = -1, .status = MATCH_STATUS_SCHEDULED };
-        parse_match(match_json, &matches[count]);
+        parse_event(event_json, &matches[count]);
         count += 1;
     }
 
     *out_count = count;
+    cJSON_Delete(root);
+    return RESULT_OK;
+}
+
+static CardType map_card(const char *detail)
+{
+    if (detail == NULL) {
+        return CARD_YELLOW;
+    }
+    if (strstr(detail, "Second") != NULL) {
+        return CARD_YELLOW_RED;
+    }
+    if (strstr(detail, "Red") != NULL) {
+        return CARD_RED;
+    }
+    return CARD_YELLOW;
+}
+
+Result api_parser_parse_timeline(const char *json, Match *match)
+{
+    if (json == NULL || match == NULL) {
+        return RESULT_ERROR("api_parser_parse_timeline: NULL argument");
+    }
+
+    cJSON *root = cJSON_Parse(json);
+    if (root == NULL) {
+        return RESULT_ERROR("failed to parse timeline JSON");
+    }
+
+    const cJSON *timeline = cJSON_GetObjectItemCaseSensitive(root, "timeline");
+    if (!cJSON_IsArray(timeline)) {
+        cJSON_Delete(root);
+        return RESULT_OK;
+    }
+
+    const cJSON *entry = NULL;
+    cJSON_ArrayForEach(entry, timeline) {
+        const char *kind = json_string_or(entry, "strTimeline", "");
+        const char *detail = json_string_or(entry, "strTimelineDetail", "");
+        bool is_home = string_equals(json_string_or(entry, "strHome", "Yes"), "Yes");
+        const char *code = is_home ? match->home.code : match->away.code;
+        int minute = json_int_string_or(entry, "intTime", 0);
+
+        if (string_equals(kind, "Goal")) {
+            MatchEvent event = { 0 };
+            string_copy(event.scorer_name, sizeof event.scorer_name,
+                        json_string_or(entry, "strPlayer", "Unknown"));
+            string_copy(event.team_code, sizeof event.team_code, code);
+            event.minute = minute;
+            event.is_penalty = (strstr(detail, "Penalty") != NULL);
+            event.is_own_goal = (strstr(detail, "Own") != NULL);
+            match_add_event(match, &event);
+        } else if (string_equals(kind, "Card")) {
+            MatchCard card = { 0 };
+            string_copy(card.player_name, sizeof card.player_name,
+                        json_string_or(entry, "strPlayer", "Unknown"));
+            string_copy(card.team_code, sizeof card.team_code, code);
+            card.minute = minute;
+            card.type = map_card(detail);
+            match_add_card(match, &card);
+        }
+    }
+
     cJSON_Delete(root);
     return RESULT_OK;
 }
