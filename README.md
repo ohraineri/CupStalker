@@ -41,24 +41,25 @@ the only things you have to install are libcurl and cJSON.
 
 ## Get an API key
 
-Scores come from [football-data.org](https://www.football-data.org). Make a
-free account and grab your API token from the dashboard.
-
-Open `config.h` and paste it in:
+Scores come from [TheSportsDB](https://www.thesportsdb.com). It ships a free
+shared test key (`"3"`), which is what `config.h` uses out of the box — no
+account needed to try it.
 
 ```c
-#define API_KEY "paste-your-token-here"
+#define API_KEY "3"
 ```
 
-If you'd rather not edit the file, pass it at build time instead:
+The shared key is rate limited and exposes only a subset of fixtures. If you
+back TheSportsDB on Patreon you get a private key with full coverage; drop it in
+`config.h` or pass it at build time:
 
 ```sh
-make release CFLAGS_EXTRA='-DAPI_KEY=\"your-token\"'
+make release CFLAGS_EXTRA='-DAPI_KEY=\"your-key\"'
 ```
 
-Heads up: the free tier is enough for live scores, status and the match clock,
-but the per-goal scorer names usually only show up on the paid plans. The app
-handles that gracefully (you just won't see the scorer lines).
+Match list (scores, teams, venue, status) comes from the season endpoint;
+goal scorers and cards are pulled per match from the event timeline endpoint,
+so the GOALS and CARDS sections fill in for finished and live matches.
 
 ## Build and run
 
@@ -76,10 +77,11 @@ Keys work immediately, no Enter needed.
 
 | Key   | Does                                   |
 |-------|----------------------------------------|
+| `Tab` | switch tabs (Live ↔ Recent Matches)    |
 | `s`   | switch between stealth and vivid       |
-| `r`   | refresh right now                      |
-| `d`   | show/hide goals for the selected match |
-| `↑` `↓` | move between matches                 |
+| `r`   | refresh right now (re-fetches the current tab) |
+| `d`   | show/hide goals for the selected match (Live tab) |
+| `↑` `↓` | move between matches / scroll Recent Matches |
 | `q`   | quit (puts your terminal back to normal) |
 
 Ctrl-C also quits cleanly.
@@ -89,10 +91,12 @@ Ctrl-C also quits cleanly.
 Everything lives in `config.h`. The ones you'll actually touch:
 
 - `REFRESH_INTERVAL_SECONDS` — how often it polls. Default is 30. The free API
-  tier is rate limited, so don't crank this too low.
+  key is rate limited, so don't crank this too low.
 - `DEFAULT_DISPLAY_MODE` — `DISPLAY_MODE_STEALTH` or `DISPLAY_MODE_VIVID`.
-- `COMPETITION_ID` — the football-data.org competition id (set to the 2026
-  World Cup).
+- `WC_LEAGUE_ID` / `WC_SEASON` — TheSportsDB league id (4429 = FIFA World Cup)
+  and season (`"2026"`).
+- `RECENT_MATCHES_LIMIT` / `RECENT_VISIBLE_MATCHES` — how many finished matches
+  the Recent Matches tab keeps, and how many show per screen before scrolling.
 - `MAX_MATCHES` — how many matches to keep on screen.
 
 Change anything, then `make release` again.
