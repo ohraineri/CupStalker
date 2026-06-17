@@ -13,6 +13,8 @@ typedef struct {
 Result api_client_global_init(void);
 void api_client_global_cleanup(void);
 Result api_client_fetch_matches(ApiResponse *response);
+Result api_client_fetch_recent_matches(ApiResponse *response);
+Result api_client_fetch_timeline(int event_id, ApiResponse *response);
 void api_response_free(ApiResponse *response);
 
 #endif

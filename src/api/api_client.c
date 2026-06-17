@@ -36,28 +36,16 @@ void api_client_global_cleanup(void)
     curl_global_cleanup();
 }
 
-static void build_matches_url(char *url, size_t url_size)
+static Result perform_get(const char *url, ApiResponse *response)
 {
-    snprintf(url, url_size, "%s/competitions/%d/matches", API_BASE_URL, COMPETITION_ID);
-}
-
-Result api_client_fetch_matches(ApiResponse *response)
-{
-    if (response == NULL) {
-        return RESULT_ERROR("api_client_fetch_matches: response is NULL");
-    }
-
     CURL *handle = curl_easy_init();
     if (handle == NULL) {
         return RESULT_ERROR("curl_easy_init failed");
     }
 
     ApiResponse buffer = { .data = NULL, .length = 0 };
-    char url[512];
-    build_matches_url(url, sizeof url);
 
     struct curl_slist *headers = NULL;
-    headers = curl_slist_append(headers, "X-Auth-Token: " API_KEY);
     headers = curl_slist_append(headers, "Accept: application/json");
 
     curl_easy_setopt(handle, CURLOPT_URL, url);
@@ -91,6 +79,35 @@ Result api_client_fetch_matches(ApiResponse *response)
     curl_slist_free_all(headers);
     curl_easy_cleanup(handle);
     return result;
+}
+
+Result api_client_fetch_matches(ApiResponse *response)
+{
+    if (response == NULL) {
+        return RESULT_ERROR("api_client_fetch_matches: response is NULL");
+    }
+
+    char url[512];
+    snprintf(url, sizeof url, "%s/%s/eventsseason.php?id=%d&s=%s",
+             API_BASE_URL, API_KEY, WC_LEAGUE_ID, WC_SEASON);
+    return perform_get(url, response);
+}
+
+Result api_client_fetch_recent_matches(ApiResponse *response)
+{
+    return api_client_fetch_matches(response);
+}
+
+Result api_client_fetch_timeline(int event_id, ApiResponse *response)
+{
+    if (response == NULL) {
+        return RESULT_ERROR("api_client_fetch_timeline: response is NULL");
+    }
+
+    char url[512];
+    snprintf(url, sizeof url, "%s/%s/lookuptimeline.php?id=%d",
+             API_BASE_URL, API_KEY, event_id);
+    return perform_get(url, response);
 }
 
 void api_response_free(ApiResponse *response)
