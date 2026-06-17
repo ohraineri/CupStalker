@@ -208,11 +208,8 @@ static bool app_handle_input(AppState *state, InputAction action)
 
 static void install_signal_handlers(void)
 {
-    struct sigaction action = { 0 };
-    action.sa_handler = request_quit;
-    sigemptyset(&action.sa_mask);
-    sigaction(SIGINT, &action, NULL);
-    sigaction(SIGTERM, &action, NULL);
+    signal(SIGINT, request_quit);
+    signal(SIGTERM, request_quit);
 }
 
 static void run_loop(AppState *state)
