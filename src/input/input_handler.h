@@ -8,7 +8,9 @@ typedef enum {
     INPUT_QUIT,
     INPUT_NAV_UP,
     INPUT_NAV_DOWN,
-    INPUT_TOGGLE_DETAILS
+    INPUT_TOGGLE_DETAILS,
+    INPUT_NEXT_TAB,
+    INPUT_PREV_TAB
 } InputAction;
 
 InputAction input_handler_poll(void);

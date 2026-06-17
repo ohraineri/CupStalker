@@ -2,6 +2,7 @@
 #define CUP_STALKER_DISPLAY_H
 
 #include "../model/match.h"
+#include "tabs.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -17,6 +18,7 @@ typedef struct {
     int          selected_index;
     bool         show_details;
     const char  *banner;
+    AppTab       active_tab;
 
     const char (*log_lines)[160];
     int          log_count;

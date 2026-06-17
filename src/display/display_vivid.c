@@ -106,6 +106,7 @@ static void print_match_panel(const Match *match, bool selected, bool show_detai
 void display_render_vivid(const DisplayContext *context)
 {
     terminal_clear();
+    tabs_render_bar(context->active_tab, true);
 
     print_rule(BOX_TOP, BOX_TR);
     print_row(ANSI_BOLD ANSI_YELLOW "\U0001F3C6  CUP STALKER — AO VIVO \U0001F534" ANSI_RESET);

@@ -17,6 +17,7 @@ static InputAction decode_escape_sequence(void)
     switch (code) {
         case 'A': return INPUT_NAV_UP;
         case 'B': return INPUT_NAV_DOWN;
+        case 'Z': return INPUT_PREV_TAB;
         default:  return INPUT_NONE;
     }
 }
@@ -33,6 +34,7 @@ InputAction input_handler_poll(void)
         case 'r': return INPUT_REFRESH;
         case 'q': return INPUT_QUIT;
         case 'd': return INPUT_TOGGLE_DETAILS;
+        case '\t': return INPUT_NEXT_TAB;
         case '\033': return decode_escape_sequence();
         default: return INPUT_NONE;
     }

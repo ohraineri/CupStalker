@@ -57,6 +57,7 @@ static void print_stealth_events(const Match *match)
 void display_render_stealth(const DisplayContext *context)
 {
     terminal_clear();
+    tabs_render_bar(context->active_tab, false);
     print_stealth_header();
 
     for (int i = 0; i < context->count; ++i) {
