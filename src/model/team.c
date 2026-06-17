@@ -54,6 +54,56 @@ static const size_t FLAG_TABLE_SIZE = sizeof FLAG_TABLE / sizeof FLAG_TABLE[0];
 
 static const char *const FLAG_UNKNOWN = "\U0001F3F3";
 
+typedef struct {
+    const char *name;
+    const char *code;
+} CodeEntry;
+
+static const CodeEntry CODE_TABLE[] = {
+    { "Brazil", "BRA" },        { "Argentina", "ARG" },     { "France", "FRA" },
+    { "Germany", "GER" },       { "Spain", "ESP" },         { "England", "ENG" },
+    { "Portugal", "POR" },      { "Netherlands", "NED" },   { "Italy", "ITA" },
+    { "Belgium", "BEL" },       { "Croatia", "CRO" },       { "Uruguay", "URU" },
+    { "Mexico", "MEX" },        { "United States", "USA" }, { "USA", "USA" },
+    { "Canada", "CAN" },        { "Japan", "JPN" },         { "South Korea", "KOR" },
+    { "Morocco", "MAR" },       { "Senegal", "SEN" },       { "Ghana", "GHA" },
+    { "Nigeria", "NGA" },       { "Colombia", "COL" },      { "Ecuador", "ECU" },
+    { "Switzerland", "SUI" },   { "Denmark", "DEN" },       { "Australia", "AUS" },
+    { "South Africa", "RSA" },  { "Czech Republic", "CZE" },{ "Paraguay", "PAR" },
+    { "Bosnia-Herzegovina", "BIH" }, { "Jordan", "JOR" },   { "Austria", "AUT" },
+    { "Poland", "POL" },        { "Serbia", "SRB" },        { "Wales", "WAL" },
+    { "Iran", "IRN" },          { "Saudi Arabia", "KSA" },  { "Qatar", "QAT" },
+    { "Cameroon", "CMR" },      { "Tunisia", "TUN" },       { "Costa Rica", "CRC" },
+};
+
+static const size_t CODE_TABLE_SIZE = sizeof CODE_TABLE / sizeof CODE_TABLE[0];
+
+void team_code_for_name(char *out, size_t size, const char *name)
+{
+    if (out == NULL || size == 0) {
+        return;
+    }
+    if (name == NULL || name[0] == '\0') {
+        out[0] = '\0';
+        return;
+    }
+
+    for (size_t i = 0; i < CODE_TABLE_SIZE; ++i) {
+        if (strcmp(name, CODE_TABLE[i].name) == 0) {
+            string_copy(out, size, CODE_TABLE[i].code);
+            return;
+        }
+    }
+
+    size_t written = 0;
+    for (const char *cursor = name; *cursor && written < 3 && written + 1 < size; ++cursor) {
+        if (isalpha((unsigned char)*cursor)) {
+            out[written++] = (char)toupper((unsigned char)*cursor);
+        }
+    }
+    out[written] = '\0';
+}
+
 const char *team_flag_for_code(const char *code)
 {
     if (code == NULL || code[0] == '\0') {
