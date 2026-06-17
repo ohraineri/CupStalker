@@ -7,6 +7,8 @@
 
 #define MATCH_SCORER_CAPACITY 64
 #define MATCH_PHASE_CAPACITY 32
+#define MATCH_VENUE_CAPACITY 64
+#define MATCH_DATE_CAPACITY 32
 
 typedef enum {
     MATCH_STATUS_SCHEDULED,
@@ -16,12 +18,26 @@ typedef enum {
     MATCH_STATUS_POSTPONED
 } MatchStatus;
 
+typedef enum {
+    CARD_YELLOW,
+    CARD_RED,
+    CARD_YELLOW_RED
+} CardType;
+
 typedef struct {
     char scorer_name[MATCH_SCORER_CAPACITY];
+    char team_code[TEAM_CODE_CAPACITY];
     int  minute;
     bool is_own_goal;
     bool is_penalty;
 } MatchEvent;
+
+typedef struct {
+    char     player_name[MATCH_SCORER_CAPACITY];
+    char     team_code[TEAM_CODE_CAPACITY];
+    int      minute;
+    CardType type;
+} MatchCard;
 
 typedef struct {
     int         id;
@@ -33,16 +49,26 @@ typedef struct {
     int         stoppage;
     MatchStatus status;
     char        phase[MATCH_PHASE_CAPACITY];
+    char        venue[MATCH_VENUE_CAPACITY];
+    char        city[MATCH_VENUE_CAPACITY];
+    char        date_utc[MATCH_DATE_CAPACITY];
 
     MatchEvent *events;
     int         event_count;
     int         event_capacity;
+
+    MatchCard  *cards;
+    int         card_count;
+    int         card_capacity;
 } Match;
 
 Match *match_create(void);
 void match_destroy(Match **match);
 void match_add_event(Match *match, const MatchEvent *event);
 void match_release_events(Match *match);
+void match_add_card(Match *match, const MatchCard *card);
+void match_release_cards(Match *match);
+const char *match_card_label(CardType type);
 
 typedef struct {
     int         id;

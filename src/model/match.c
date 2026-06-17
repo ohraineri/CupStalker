@@ -21,6 +21,7 @@ void match_destroy(Match **match)
     }
 
     memory_free((void **)&(*match)->events);
+    memory_free((void **)&(*match)->cards);
     memory_free((void **)match);
 }
 
@@ -52,6 +53,46 @@ void match_release_events(Match *match)
     memory_free((void **)&match->events);
     match->event_count = 0;
     match->event_capacity = 0;
+}
+
+void match_add_card(Match *match, const MatchCard *card)
+{
+    if (match == NULL || card == NULL) {
+        return;
+    }
+
+    if (match->card_count == match->card_capacity) {
+        int next_capacity = (match->card_capacity == 0)
+                                ? MATCH_EVENT_INITIAL_CAPACITY
+                                : match->card_capacity * 2;
+        match->cards = memory_realloc(match->cards,
+                                      (size_t)next_capacity * sizeof *match->cards);
+        match->card_capacity = next_capacity;
+    }
+
+    match->cards[match->card_count] = *card;
+    match->card_count += 1;
+}
+
+void match_release_cards(Match *match)
+{
+    if (match == NULL) {
+        return;
+    }
+
+    memory_free((void **)&match->cards);
+    match->card_count = 0;
+    match->card_capacity = 0;
+}
+
+const char *match_card_label(CardType type)
+{
+    switch (type) {
+        case CARD_YELLOW:     return "YELLOW";
+        case CARD_RED:        return "RED";
+        case CARD_YELLOW_RED: return "YELLOW_RED";
+    }
+    return "UNKNOWN";
 }
 
 MatchSnapshot match_snapshot(const Match *match)
